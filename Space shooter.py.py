@@ -475,14 +475,28 @@ class GameWindow(arcade.Window):
 
         if self.boss:
             self.boss.update(self.player_x, self.player_y, delta_time)
+
+            # Boss bullets
             normalbullet = self.boss.shoot_normal()
             if normalbullet: self.enemy_bullets.append(normalbullet)
 
             bigbullet = self.boss.shoot_big()
             if bigbullet : self.enemy_bullets.append(bigbullet)
         
-        for bullet in self.bullets[:]:
-            if math.hypot(bullet.x - self.boss.x, bullet.y - self.boss.y) < self.boss.radius:
+        # boss ke sath bullet collison (isse if ke andar rakha he kiu ki crash na ho)
+        if self.boss:
+            for bullet in self.bullets[:]:
+              distance = math.hypot(bullet.x - self.boss.x, bullet.y - self.boss.y)
+              
+              if distance < self.boss.radius:
+                if self.boss.take_damage():
+                    self.boss = None #boss is dead
+                    self.score += 500
+                
+                if bullet in self.bullets:
+                    self.bullets.remove(bullet)
+                break
+
                 
 
 
