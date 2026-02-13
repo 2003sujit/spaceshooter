@@ -53,8 +53,15 @@ class Particle:
         return self.alpha > 0
 
     def draw(self):
+        r, g, b, _ = self.color 
+        color_with_alpha = (r, g, b, int(self.alpha))
+        
         arcade.draw_circle_filled(
-            self.x, self.y, self.size, self.color + (self.alpha))    
+            center_x=self.x,
+            center_y=self.y,
+            radius=self.size,
+            color=color_with_alpha
+        )    
 
 
 class EnemyBullet:
@@ -94,7 +101,7 @@ class Enemy:
         self.enemy_type = random.choice(ENEMY_TYPES)   
         self.speed = random.uniform(ENEMY_SPEED_MIN, ENEMY_SPEED_MAX)
         self.angle = 0
-        self.radius = 150 * ENEMY_SCALE
+        self.radius = 40 * ENEMY_SCALE
         self.health = 3
         self.max_health = 3
         self.shoot_cooldown = 0
@@ -145,21 +152,23 @@ class Enemy:
 
     def draw_health_bar(self):
         if self.health < self.max_health:
-            bar_width = 50
-            bar_height = 6
+            bar_width = 40
+            bar_height = 5
             health_percentage = self.health / self.max_health
             health_width = health_percentage * bar_width
 
             bar_x = self.x
-            bar_y = self.y + self.radius + 20
+            bar_y = self.y + self.radius + 30
 
             arcade.draw_rect_filled(
                 arcade.XYWH(bar_x, bar_y, bar_width, bar_height), arcade.color.RED
             )
-            arcade.draw_rect_filled(arcade.XYWH(bar_x - (bar_width - health_width) / 2, bar_y,
+            arcade.draw_rect_filled(
+                arcade.XYWH(bar_x - (bar_width - health_width) / 2, bar_y,
                                          health_width, bar_height), arcade.color.GREEN)
-            arcade.draw_lbwh_rectangle_outline(
-                bar_x, bar_y, bar_width, bar_height, arcade.color.WHITE, 1
+            arcade.draw_rect_outline(
+                arcade.XYWH(bar_x, bar_y, bar_width, bar_height), arcade.color.WHITE,
+                border_width=1
             )
             
 
@@ -361,9 +370,13 @@ class GameWindow(arcade.Window):
         if self.boss:
             self.boss.draw()
             self.boss.draw_health_bar()
-        for bb in self.boss_bullets:
-            bb.draw()
+        for bigbullet in self.boss_bullets:
+            bigbullet.draw()
         
+        for enemy in self.enemies:
+            enemy.draw()
+            enemy.draw_health_bar()
+
         arcade.draw_triangle_filled(
            self.player_x + 
            math.cos(math.radians(self.player_angle)) * 
@@ -392,10 +405,7 @@ class GameWindow(arcade.Window):
             enemybullet.draw()
 
         arcade.draw_text(f"Score: {self.score} Health: {self.health}", 10, 10, arcade.color.WHITE, 16)    
-
-        for enemy in self.enemies:
-            enemy.draw()
-            enemy.draw_health_bar()    
+            
 
 
     def on_update(self, delta_time):
@@ -424,11 +434,13 @@ class GameWindow(arcade.Window):
         self.player_y = max(self.player_radius, min(
             SCREEN_HEIGHT - self.player_radius, self.player_y))
         
+        #player bullet update
         for bullet in self.bullets[:]:
             bullet.update()
             if bullet.is_off_screen():
                 self.bullets.remove(bullet)
-
+        
+        #enemy bullet update
         for enemybullet in self.enemy_bullets[:]:
             enemybullet.update()
             dist = math.hypot(enemybullet.x - self.player_x, enemybullet.y - self.player_y)
@@ -436,7 +448,8 @@ class GameWindow(arcade.Window):
                 self.health -= 10
                 if enemybullet in self.enemy_bullets: self.enemy_bullets.remove(enemybullet)
             elif enemybullet.x < 0 or enemybullet.x > SCREEN_WIDTH: self.enemy_bullets.remove(enemybullet)            
-
+        
+        # Enemy update and shooting
         for enemy in self.enemies[:]:
             enemy.update(self.player_x, self.player_y, delta_time)
             
@@ -444,10 +457,8 @@ class GameWindow(arcade.Window):
             if enemybullet: 
                 self.enemy_bullets.append(enemybullet)
 
-
-            distance = math.sqrt((enemy.x - self.player_x)
-                                 **2 + (enemy.y - self.player_y)**2
-                )
+            # Player vs Enemy collision
+            distance = math.hypot(enemy.x - self.player_x, enemy.y - self.player_y)
 
             if distance < enemy.radius + self.player_radius:
                 self.health -= 10
@@ -460,15 +471,16 @@ class GameWindow(arcade.Window):
 
         for bullet in self.bullets[:]:
             for enemy in self.enemies[:]:
-                distance = math.sqrt((bullet.x - enemy.x)
-                                     **2 + (bullet.y - enemy.y)**2
-                )
+                distance = math.hypot(bullet.x - enemy.x, bullet.y - enemy.y)
 
                 if distance < bullet.radius + enemy.radius:
-                    self.enemies.remove(enemy)
+                    #Enemy called remove ki jagha pe take_damage() call kia he
+                    if enemy.take_damage():
+                        self.enemies.remove(enemy)
+                        self.score += 10
+
                     if bullet in self.bullets:
                         self.bullets.remove(bullet)
-                    self.score += 10
                     break          
         if self.score >= 210 and self.boss is None:
             self.boss = Boss()
