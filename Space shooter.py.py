@@ -32,6 +32,34 @@ PARTICLE_SPEED = 3
 PARTICLE_FADE_RATE = 8
 
 
+class PowerUp:
+    def __init__(self, x, y, power_type):
+        self.x = x
+        self.y = y
+        self.type = power_type
+        self.radius = 20
+        self.speed_y = -1
+
+        if power_type == "rapid_fire":
+            self.color = arcade.color.CYAN
+        elif power_type == "shield":   
+            self.color = arcade.color.BLUE
+        else:
+            self.color = arcade.color.GREEN
+
+    def update(self):
+        self.y += self.speed_y
+
+    def draw(self):
+        arcade.draw_circle_filled(self.x, self.y, self.radius, self.color)
+        if self.type == "rapid_fire":
+            arcade.draw_text("⚡", self.x - 6, self.y - 6, arcade.color.WHITE, 12)
+        elif self.type == "shield":
+            arcade.draw_text("❤️", self.x - 6, self.y - 6, arcade.color.WHITE, 12)
+        else:
+            arcade.draw_text("💛", self.x - 6, self.y - 6, arcade.color.WHITE, 12)                   
+    
+
 class Particle:
     def __init__(self, x, y):
         self.x = x
@@ -171,7 +199,6 @@ class Enemy:
                 border_width=1
             )
             
-
     def is_off_screen(self):
         return (self.x < -50 or self.x > SCREEN_WIDTH + 50 or
                 self.y < -50 or self.y > SCREEN_HEIGHT + 50)  
@@ -508,9 +535,6 @@ class GameWindow(arcade.Window):
                 if bullet in self.bullets:
                     self.bullets.remove(bullet)
                 break
-
-                
-
 
     def shoot(self):
         if self.shoot_cooldown <= 0:
