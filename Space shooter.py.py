@@ -387,6 +387,8 @@ class GameWindow(arcade.Window):
         self.score = 0
 
         self.keys_pressed = set()
+        self.powerups = []
+        self.rapid_fire_timer = 0
 
     def on_draw(self):
         self.clear()
@@ -430,6 +432,9 @@ class GameWindow(arcade.Window):
             bullet.draw()
         for enemybullet in self.enemy_bullets:
             enemybullet.draw()
+
+        for powerup in self.powerups:
+            powerup.draw()
 
         arcade.draw_text(f"Score: {self.score} Health: {self.health}", 10, 10, arcade.color.WHITE, 16)    
             
@@ -506,6 +511,11 @@ class GameWindow(arcade.Window):
                         self.enemies.remove(enemy)
                         self.score += 10
 
+                        # Spawn powerup logic
+                    if random.random() < 0.2: # 20% chance
+                        power_type = random.choice(["rapid_fire", "shield", "health"])
+                        self.powerups.append(PowerUp(enemy.x, enemy.y, power_type))
+
                     if bullet in self.bullets:
                         self.bullets.remove(bullet)
                     break          
@@ -536,6 +546,31 @@ class GameWindow(arcade.Window):
                     self.bullets.remove(bullet)
                 break
 
+        # Powerup update and collision
+        for powerup in self.powerups[:]:
+            powerup.update()
+            
+            # Remove if off screen
+            if powerup.y < -50:
+                self.powerups.remove(powerup)
+                continue
+
+            # Player collision
+            distance = math.hypot(powerup.x - self.player_x, powerup.y - self.player_y)
+            if distance < powerup.radius + self.player_radius:
+                if powerup.type == "rapid_fire":
+                    self.rapid_fire_timer = 5.0 # 5 seconds of rapid fire
+                elif powerup.type == "shield":
+                    self.health = min(100, self.health + 20) # Simple shield: heal 20
+                elif powerup.type == "health":
+                    self.health = min(100, self.health + 50) # Heal 50
+                
+                self.powerups.remove(powerup)
+
+        # Handle rapid fire timer
+        if self.rapid_fire_timer > 0:
+            self.rapid_fire_timer -= delta_time
+
     def shoot(self):
         if self.shoot_cooldown <= 0:
             bullet_x = self.player_x + \
@@ -543,7 +578,13 @@ class GameWindow(arcade.Window):
             bullet_y = self.player_y + \
                 math.sin(math.radians(self.player_angle)) * self.player_radius
             self.bullets.append(Bullet(bullet_x, bullet_y, self.player_angle))
-            self.shoot_cooldown = PLAYER_SHOOT_COOLDOWN
+            
+            # Apply rapid fire effect
+            cooldown = PLAYER_SHOOT_COOLDOWN
+            if self.rapid_fire_timer > 0:
+                cooldown /= 4 # 4x faster firing speed
+            
+            self.shoot_cooldown = cooldown
         
     def on_key_press(self, symbol, modifiers):
         self.keys_pressed.add(symbol)
